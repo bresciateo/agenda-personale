@@ -1,0 +1,12 @@
+LA MIA AGENDA — AGGIORNAMENTO GRAFICO COMPLETO
+
+1. Esporta prima una copia JSON delle tue settimane.
+2. Apri https://github.com/bresciateo/agenda-personale
+3. Add file > Upload files e carica tutti i file contenuti in questo ZIP (non lo ZIP).
+4. Commit changes, poi aggiorna l’app dal browser.
+5. Android: apri con Chrome e scegli Installa app / Aggiungi a schermata Home.
+6. iPad: apri con Safari e scegli Condividi > Aggiungi alla schermata Home.
+
+Nessuna modifica alla configurazione Firebase o ai dati delle settimane.
+L’icona è stata ricavata unicamente dall’immagine caricata: nessuna rigenerazione.
+Se l’icona installata non cambia, rimuovi il collegamento dalla Home e reinstallala.
