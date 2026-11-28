@@ -47,7 +47,7 @@ header.agendaHeader{padding:0;display:block;background:#206659;}
 .privateDiary{border:1px solid #e5d7b8;border-radius:11px;background:#fffcf4;padding:12px;margin:12px 0}
 .privateDiary .field{margin-bottom:3px}
 </style></head><body>
-<header class="agendaHeader"><div class="agendaHeaderTop"><div><div class="eyebrow">SCUOLA · CORO · v2.3 — Diario condiviso</div><h1>La mia agenda</h1></div><div class="topright"><span id="cloudStatus" class="cloud">● Salvata sul dispositivo</span><button class="secondary" id="collabBtn">👥 Collaborazione</button><button class="secondary" id="settingsBtn">⚙ Impostazioni</button></div></div><img class="agendaBanner" src="banner-agenda.png" alt="Illustrazione della classe con il maestro e la chitarra"></header>
+<header class="agendaHeader"><div class="agendaHeaderTop"><div><div class="eyebrow">SCUOLA · CORO · v2.4 — Esportazione diario</div><h1>La mia agenda</h1></div><div class="topright"><span id="cloudStatus" class="cloud">● Salvata sul dispositivo</span><button class="secondary" id="collabBtn">👥 Collaborazione</button><button class="secondary" id="settingsBtn">⚙ Impostazioni</button></div></div><img class="agendaBanner" src="banner-agenda.png" alt="Illustrazione della classe con il maestro e la chitarra"></header>
 <main class="shell"><section class="bar"><div class="weekNav"><button class="secondary icon" id="prevWeek" aria-label="Settimana precedente">‹</button><strong id="weekLabel"></strong><button class="secondary icon" id="nextWeek" aria-label="Settimana successiva">›</button><button class="secondary small" id="todayBtn">Oggi</button></div><div class="actions"><button class="secondary" id="newWeekBtn">＋ Nuova settimana</button><button class="secondary" id="templateBtn">✎ Settimana tipo</button><button class="secondary" id="objectivesBtn">📚 Obiettivi</button><button id="addBtn">＋ Attività</button></div></section>
 <section class="filterbar"><div class="segment" role="group" aria-label="Filtro attività"><button data-filter="all" class="active">Tutte</button><button data-filter="school">▣ Scuola</button><button data-filter="choir">♫ Coro</button></div><div class="row"><div class="segment" id="ownerFilters" role="group" aria-label="Filtra per docente"><button data-ownerfilter="all" class="active">Tutti i docenti</button><button data-ownerfilter="mine">Le mie</button><button data-ownerfilter="others">Colleghi</button></div><span class="hint" id="weekHint">Le modifiche si salvano automaticamente</span></div></section><section class="days" id="days"></section>
 <section class="lower"><div class="panel"><div class="panelheader"><h2>📌 Da programmare</h2><button class="secondary small" id="addBacklog">＋ Aggiungi</button></div><p>Idee e attività ancora senza una data. Puoi assegnarle a un giorno quando vuoi.</p><div id="backlog"></div></div><div class="panel"><div class="panelheader"><h2>📝 Note della settimana</h2><button class="secondary small" id="addWeeklyNote">＋ Aggiungi</button></div><p>Promemoria, materiali da preparare, riflessioni generali. Ogni nota viene salvata separatamente.</p><div id="weeklyNotesList"></div></div></section></main><div class="toast" id="toast" role="status"></div><div id="modalRoot"></div>
@@ -129,31 +129,56 @@ function crc32(bytes){let crc=-1;for(const b of bytes){crc^=b;for(let j=0;j<8;j+
 function xml(s){return String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&apos;'}[c]))}function wordParagraph(text,bold=false){return String(text??'').split('\n').map(t=>`<w:p><w:r>${bold?'<w:rPr><w:b/></w:rPr>':''}<w:t xml:space="preserve">${xml(t)}</w:t></w:r></w:p>`).join('')}function exportWord(){const w=week();if(!w){notify('Crea prima la settimana');return}let b=wordParagraph(`La mia agenda — ${weekTitle()}`,true);DAYS.forEach((d,i)=>{b+=wordParagraph(`${d} ${dateDisplay(addDays(currentMonday,i))}`,true);const acts=w.activities.filter(a=>a.day===i&&(filter==='all'||a.category===filter));acts.forEach(a=>{b+=wordParagraph(`${a.category==='school'?'SCUOLA':'CORO'} · ${a.subject} — ${a.title||'Attività'}`,true);b+=wordParagraph(`Stato: ${STATUSES[a.status]}`);[['Obiettivo',a.objective],['Consegne',a.instructions],['Orario',a.startTime?(a.startTime+(a.endTime?'–'+a.endTime:'')):''],['Attività',a.description],['Materiali/brani',a.materials],['Osservazioni',a.observations],['Riflessioni',a.nextSteps]].forEach(([label,v])=>{if(v)b+=wordParagraph(label+': '+v)})})});if(w.weeklyNotes?.length){b+=wordParagraph('Note della settimana',true);w.weeklyNotes.forEach(n=>b+=wordParagraph(plainRich(n.body)))}else if(w.notes)b+=wordParagraph('Note della settimana',true)+wordParagraph(w.notes);const doc=`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"><w:body>${b}<w:sectPr><w:pgSz w:w="11906" w:h="16838"/><w:pgMar w:top="1134" w:right="1134" w:bottom="1134" w:left="1134"/></w:sectPr></w:body></w:document>`;const blob=zip({'[Content_Types].xml':'<?xml version="1.0" encoding="UTF-8"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/></Types>','_rels/.rels':'<?xml version="1.0" encoding="UTF-8"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="word/document.xml"/></Relationships>','word/document.xml':doc});download(blob,`agenda-settimana-${mondayKey()}.docx`);notify('Documento Word scaricato')}
 
 
-// Esporta lo storico personale delle osservazioni, per disciplina e per data.
-// I documenti condivisi NON vengono consultati: il diario di bordo resta privato.
-function diaryRecordsForSubject(subject){
- const records=[];
- for(const [weekId,w] of Object.entries(dbState.weeks||{})){
-  for(const a of (w.activities||[])){
-   if(a.category!=='school'||a.subject!==subject||a.day===null||a.day===undefined)continue;
-   const richObs=getRich(a,'observations');
-   if(!plainRich(richObs).trim())continue;
-   let when;
-   try{when=addDays(parseDate(weekId),Number(a.day));if(!Number.isFinite(when.getTime()))continue;}catch(e){continue}
-   records.push({when,date:iso(when),activity:a,observations:richObs});
+function diaryRecordsForSubject(subject, opts={}){
+ const rows=[];const from=opts.from||'0000-01-01',to=opts.to||'9999-12-31';
+ const uid=cloud?.auth?.currentUser?.uid||'';
+ for(const [weekId,w] of Object.entries(dbState.weeks||{}))for(const a of w.activities||[]){
+  if(a.category!=='school'||a.subject!==subject||a.day==null)continue;
+  let when;try{when=addDays(parseDate(weekId),Number(a.day));if(!Number.isFinite(when.getTime()))continue}catch(_){continue}
+  const date=iso(when);if(date<from||date>to)continue;
+  const parts=[];
+  for(const [field,label,enabled] of [['observations','Osservazioni didattiche',opts.observations],['nextSteps','Riflessioni e sviluppi',opts.nextSteps],['privateObservations','Osservazioni personali (private)',opts.privateObservations]]){
+   if(enabled){const val=getRich(a,field);if(plainRich(val).trim())parts.push({label,author:'Tu',html:val})}
   }
+  if(opts.colleagues&&uid){const k=contributionKey(uid,weekId,a.id);for(const [otherUid,entry] of Object.entries(sharedEntries||{})){
+   if(otherUid===uid)continue;const c=entry.contributions?.[k];if(!c)continue;
+   if(c.observations?.trim())parts.push({label:'Osservazioni dei colleghi',author:entry.authorEmail||'Collega',html:richFromPlain(c.observations)});
+   if(c.nextSteps?.trim())parts.push({label:'Riflessioni dei colleghi',author:entry.authorEmail||'Collega',html:richFromPlain(c.nextSteps)});
+  }}
+  if(parts.length)rows.push({when,date,activity:a,parts});
  }
- records.sort((a,b)=>a.date.localeCompare(b.date)||((a.activity.createdAt||0)-(b.activity.createdAt||0)));
- return records;
+ if(opts.mineOnOthers&&uid){for(const [otherUid,entry] of Object.entries(sharedEntries||{})){
+  if(otherUid===uid)continue;
+  for(const [wk,acts] of Object.entries(entry.weeks||{}))for(const a of acts||[]){
+   if(a.subject!==subject||a.day==null)continue;
+   let when;try{when=addDays(parseDate(wk),Number(a.day));if(!Number.isFinite(when.getTime()))continue}catch(_){continue}
+   const date=iso(when);if(date<from||date>to)continue;
+   const c=dbState.sharedContributions?.[contributionKey(otherUid,wk,a.id)];if(!c)continue;
+   const parts=[];
+   if(c.observations?.trim())parts.push({label:'Le mie osservazioni su attività di un collega',author:'Tu',html:richFromPlain(c.observations)});
+   if(c.nextSteps?.trim())parts.push({label:'Le mie riflessioni su attività di un collega',author:'Tu',html:richFromPlain(c.nextSteps)});
+   if(parts.length)rows.push({when,date,activity:a,parts,activityAuthor:entry.authorEmail||'Collega'});
+  }
+ }}
+ rows.sort((a,b)=>a.date.localeCompare(b.date)||(a.activity.createdAt||0)-(b.activity.createdAt||0));return rows;
 }
 function openDisciplineDiaryExport(){
- const subjects=[...new Set(Object.values(dbState.weeks||{}).flatMap(w=>(w.activities||[]).filter(a=>a.category==='school'&&a.subject&&plainRich(getRich(a,'observations')).trim()).map(a=>a.subject)))].sort((a,b)=>a.localeCompare(b,'it'));
- if(!subjects.length){notify('Nessuna osservazione nel diario di bordo delle discipline scolastiche');return}
- modal('Diario di bordo per disciplina',`<p class="modalIntro">Esporta in Word le osservazioni personali di tutte le settimane, in ordine cronologico. Non saranno inclusi il diario dei colleghi, gli obiettivi, le consegne o le note settimanali.</p><div class="field"><label for="diarySubject">Disciplina</label><select id="diarySubject">${subjects.map(s=>`<option value="${safe(s)}">${safe(s)}</option>`).join('')}</select></div><p id="diaryCount" class="help"></p>`,`<button class="secondary" data-close>Annulla</button><button id="saveDisciplineDiary">↓ Scarica Word</button>`);
- const select=document.querySelector('#diarySubject');
- const update=()=>{const n=diaryRecordsForSubject(select.value).length;document.querySelector('#diaryCount').textContent=`${n} ${n===1?'osservazione disponibile':'osservazioni disponibili'}`};
- select.onchange=update;update();
- document.querySelector('#saveDisciplineDiary').onclick=()=>{const subject=select.value;exportDisciplineDiary(subject);closeModal()};
+ const subjects=new Set();const allDates=[];
+ for(const [wk,w] of Object.entries(dbState.weeks||{}))for(const a of w.activities||[]){if(a.category!=='school'||a.day==null)continue;if(a.subject)subjects.add(a.subject);allDates.push(iso(addDays(parseDate(wk),Number(a.day))))}
+ for(const entry of Object.values(sharedEntries||{}))for(const [wk,acts] of Object.entries(entry.weeks||{}))for(const a of acts||[]){if(a.subject)subjects.add(a.subject);if(a.day!=null)allDates.push(iso(addDays(parseDate(wk),Number(a.day))))}
+ if(!subjects.size){notify('Non ci sono attività da esportare');return}
+ allDates.sort();const from=allDates[0]||iso(new Date()),to=allDates.at(-1)||iso(new Date());
+ modal('Diario di bordo per disciplina',`<p class="modalIntro">Scegli il periodo <strong>Dal–Al</strong> e quali contenuti inserire nel documento Word. Le osservazioni private non sono selezionate automaticamente.</p>
+ <div class="field"><label for="diarySubject">Disciplina</label><select id="diarySubject">${[...subjects].sort((a,b)=>a.localeCompare(b,'it')).map(x=>`<option value="${safe(x)}">${safe(x)}</option>`).join('')}</select></div>
+ <div class="row" style="gap:12px;flex-wrap:wrap"><div class="field" style="flex:1;min-width:145px"><label for="diaryFrom">Dal (compreso)</label><input id="diaryFrom" type="date" value="${from}"></div><div class="field" style="flex:1;min-width:145px"><label for="diaryTo">Al (compreso)</label><input id="diaryTo" type="date" value="${to}"></div></div>
+ <div class="sectionTitle">Parti da esportare</div>
+ ${[['diaryObs','Osservazioni didattiche condivise',true],['diaryNext','Riflessioni e sviluppi condivisi',true],['diaryPrivate','Osservazioni personali (private)',false],['diaryColleagues','Contributi dei colleghi sulle mie attività',false],['diaryMineOnOthers','I miei contributi sulle attività dei colleghi',false]].map(([id,label,checked])=>`<div class="field"><label style="display:flex;align-items:center;gap:8px"><input type="checkbox" id="${id}" style="width:17px;min-width:17px;height:17px;padding:0;flex:0 0 17px" ${checked?'checked':''}> ${label}</label></div>`).join('')}
+ <p class="help">I contributi condivisi sono disponibili quando sei collegato al team. Ogni contributo è identificato per autore.</p><p id="diaryCount" class="help"></p>`,`<button class="secondary" data-close>Annulla</button><button id="saveDisciplineDiary">↓ Scarica Word</button>`,true);
+ const val=id=>document.getElementById(id).value,checked=id=>document.getElementById(id).checked;
+ const options=()=>({from:val('diaryFrom'),to:val('diaryTo'),observations:checked('diaryObs'),nextSteps:checked('diaryNext'),privateObservations:checked('diaryPrivate'),colleagues:checked('diaryColleagues'),mineOnOthers:checked('diaryMineOnOthers')});
+ const update=()=>{const o=options(),n=o.from>o.to?null:diaryRecordsForSubject(val('diarySubject'),o).length;document.getElementById('diaryCount').textContent=n==null?'Controlla le date: «Dal» deve precedere «Al».':`${n} attività con annotazioni per i criteri selezionati.`};
+ document.querySelectorAll('#diarySubject,#diaryFrom,#diaryTo,#diaryObs,#diaryNext,#diaryPrivate,#diaryColleagues,#diaryMineOnOthers').forEach(el=>el.addEventListener('change',update));update();
+ document.getElementById('saveDisciplineDiary').onclick=()=>{const o=options();if(o.from>o.to){alert('Controlla le date: «Dal» deve precedere «Al».');return}if(![o.observations,o.nextSteps,o.privateObservations,o.colleagues,o.mineOnOthers].some(Boolean)){alert('Seleziona almeno un contenuto.');return}if(exportDisciplineDiary(val('diarySubject'),o))closeModal()};
 }
 function diaryRun(text,bold=false,italic=false,underline=false){
  const pr=(bold||italic||underline)?`<w:rPr>${bold?'<w:b/>':''}${italic?'<w:i/>':''}${underline?'<w:u w:val="single"/>':''}</w:rPr>`:'';
@@ -173,28 +198,26 @@ function diaryRichParagraphs(html){
  Array.from(root.childNodes).forEach(n=>walk(n));
  return paras.map(p=>`<w:p>${p||diaryRun('')}</w:p>`).join('');
 }
-function exportDisciplineDiary(subject){
- const recs=diaryRecordsForSubject(subject);
- if(!recs.length){notify('Nessuna osservazione per questa disciplina');return}
- let body=`<w:p><w:pPr><w:spacing w:after="240"/></w:pPr>${diaryRun('Diario di bordo — '+subject,true)}</w:p>`;
+function exportDisciplineDiary(subject,options){
+ const recs=diaryRecordsForSubject(subject,options);
+ if(!recs.length){notify('Nessuna annotazione per i criteri selezionati');return false}
+ let body=`<w:p>${diaryRun('Diario di bordo — '+subject,true)}</w:p><w:p>${diaryRun('Periodo: '+options.from+' — '+options.to)}</w:p>`;
  recs.forEach((r,index)=>{
-  const date=r.when.toLocaleDateString('it-IT',{day:'2-digit',month:'long',year:'numeric'});
-  const a=r.activity;
-  body+=`<w:p><w:pPr><w:spacing w:before="250" w:after="80"/><w:keepNext/></w:pPr>${diaryRun(`${index+1}. Data: ${date}`,true)}</w:p>`;
-  body+=`<w:p><w:pPr><w:keepNext/></w:pPr>${diaryRun('Attività: ',true)}</w:p>`;
-  // Riportiamo il titolo, se disponibile, e la descrizione integrale dell'attività.
-  const titleRich=getRich(a,'title'),descriptionRich=getRich(a,'description');
-  if(plainRich(titleRich).trim())body+=diaryRichParagraphs(titleRich);
-  if(plainRich(descriptionRich).trim())body+=diaryRichParagraphs(descriptionRich);
-  if(!plainRich(titleRich).trim()&&!plainRich(descriptionRich).trim())body+=wordParagraph('Attività da definire');
-  body+=`<w:p><w:pPr><w:spacing w:before="90"/><w:keepNext/></w:pPr>${diaryRun('Osservazioni:',true)}</w:p>`;
-  body+=diaryRichParagraphs(r.observations);
+  const a=r.activity,date=r.when.toLocaleDateString('it-IT',{day:'2-digit',month:'long',year:'numeric'});
+  body+=`<w:p><w:pPr><w:spacing w:before="240"/><w:keepNext/></w:pPr>${diaryRun(`${index+1}. ${date}`,true)}</w:p>`;
+  if(r.activityAuthor)body+=`<w:p>${diaryRun('Attività di: '+r.activityAuthor)}</w:p>`;
+  body+=`<w:p>${diaryRun('Attività:',true)}</w:p>`;
+  const title=getRich(a,'title'),description=getRich(a,'description');
+  if(plainRich(title).trim())body+=diaryRichParagraphs(title);
+  if(plainRich(description).trim())body+=diaryRichParagraphs(description);
+  if(!plainRich(title).trim()&&!plainRich(description).trim())body+=wordParagraph('Attività da definire');
+  for(const part of r.parts){body+=`<w:p><w:pPr><w:spacing w:before="120"/><w:keepNext/></w:pPr>${diaryRun(part.label+' — '+part.author,true)}</w:p>`;body+=diaryRichParagraphs(part.html)}
  });
  const doc=`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"><w:body>${body}<w:sectPr><w:pgSz w:w="11906" w:h="16838"/><w:pgMar w:top="1134" w:right="1134" w:bottom="1134" w:left="1134"/></w:sectPr></w:body></w:document>`;
  const blob=zip({'[Content_Types].xml':'<?xml version="1.0" encoding="UTF-8"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/></Types>','_rels/.rels':'<?xml version="1.0" encoding="UTF-8"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="word/document.xml"/></Relationships>','word/document.xml':doc});
  const slug=subject.normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().replace(/[^a-z0-9-]+/g,'-').replace(/^-|-$/g,'')||'disciplina';
- download(blob,`diario-di-bordo-${slug}.docx`);
- notify(`${recs.length} ${recs.length===1?'osservazione esportata':'osservazioni esportate'} in Word`);
+ download(blob,`diario-di-bordo-${slug}-${options.from}-${options.to}.docx`);
+ notify(`${recs.length} attività esportate in Word`);return true;
 }
 
 function exportExcel(){const w=week();if(!w){notify('Crea prima la settimana');return}const rows=[['GIORNO','DATA','CATEGORIA','DISCIPLINA / TIPO','TITOLO','OBIETTIVO','CONSEGNE','ATTIVITÀ PREVISTA','MATERIALI / BRANI','ORARIO','STATO','OSSERVAZIONI','RIFLESSIONI']];for(let i=0;i<7;i++){const date=addDays(currentMonday,i);const activities=w.activities.filter(a=>a.day===i&&(filter==='all'||a.category===filter));for(const a of activities)rows.push([DAYS[i],iso(date),a.category==='choir'?'Coro':'Scuola',a.subject,a.title,a.objective,a.instructions,a.description,a.materials,(a.startTime||'')+(a.endTime?'–'+a.endTime:''),STATUSES[a.status]||a.status,a.observations,a.nextSteps]);}if(w.weeklyNotes?.length){rows.push([]);rows.push(['NOTE DELLA SETTIMANA']);for(const n of w.weeklyNotes)rows.push(['',new Date(n.createdAt).toLocaleString('it-IT'),plainRich(n.body)])}const escapeX=s=>xml(String(s??'').replace(/[\x00-\x08\x0B\x0C\x0E-\x1F]/g,''));const colName=n=>{let x='';for(n++;n;n=Math.floor((n-1)/26))x=String.fromCharCode(65+(n-1)%26)+x;return x};const sheetRows=rows.map((r,i)=>`<row r="${i+1}"${i===0?' ht="35" customHeight="1"':''}>${r.map((v,j)=>`<c r="${colName(j)}${i+1}" s="${i===0||r[0]==='NOTE DELLA SETTIMANA'?1:0}" t="inlineStr"><is><t xml:space="preserve">${escapeX(v)}</t></is></c>`).join('')}</row>`).join('');const widths=[15,15,14,21,30,50,50,54,30,16,18,48,48];const cols=widths.map((w,i)=>`<col min="${i+1}" max="${i+1}" width="${w}" customWidth="1"/>`).join('');const ws=`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><sheetViews><sheetView workbookViewId="0"><pane ySplit="1" topLeftCell="A2" activePane="bottomLeft" state="frozen"/></sheetView></sheetViews><cols>${cols}</cols><sheetData>${sheetRows}</sheetData><autoFilter ref="A1:M${Math.max(1,rows.length)}"/><pageMargins left="0.3" right="0.3" top="0.5" bottom="0.5" header="0.2" footer="0.2"/></worksheet>`;const workbook=`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><sheets><sheet name="Agenda settimanale" sheetId="1" r:id="rId1"/></sheets></workbook>`;const styles=`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><fonts count="2"><font><sz val="11"/><name val="Aptos"/></font><font><b/><color rgb="FFFFFFFF"/><sz val="11"/><name val="Aptos"/></font></fonts><fills count="3"><fill><patternFill patternType="none"/></fill><fill><patternFill patternType="gray125"/></fill><fill><patternFill patternType="solid"><fgColor rgb="FF206659"/><bgColor indexed="64"/></patternFill></fill></fills><borders count="1"><border><left/><right/><top/><bottom/><diagonal/></border></borders><cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs><cellXfs count="2"><xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"><alignment vertical="top" wrapText="1"/></xf><xf numFmtId="0" fontId="1" fillId="2" borderId="0" xfId="0"><alignment vertical="center" wrapText="1"/></xf></cellXfs></styleSheet>`;const contents=`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="xml" ContentType="application/xml"/><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/><Override PartName="/xl/worksheets/sheet1.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/><Override PartName="/xl/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml"/></Types>`;const relationships=`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/></Relationships>`;const workbookRels=`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet1.xml"/><Relationship Id="rId2" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/></Relationships>`;download(zip({'[Content_Types].xml':contents,'_rels/.rels':relationships,'xl/workbook.xml':workbook,'xl/_rels/workbook.xml.rels':workbookRels,'xl/styles.xml':styles,'xl/worksheets/sheet1.xml':ws}),`agenda-settimana-${mondayKey()}.xlsx`);notify('Settimana esportata in Excel')}
